@@ -26,6 +26,7 @@ import org.gradle.api.tasks.CacheableTask;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.TaskExecutionException;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.VerificationException;
 
@@ -66,7 +67,7 @@ public class CheckExpectedBranchVersionPlugin implements Plugin<Project> {
 		abstract RegularFileProperty getOutputFile();
 
 		@TaskAction
-		public void run() throws IOException {
+		public void run() {
 			if (getSkipCheckExpectedBranchVersion().get()) {
 				writeExpectedVersionOutput("skipCheckExpectedBranchVersion=" + getSkipCheckExpectedBranchVersion().get());
 				return;
@@ -90,8 +91,12 @@ public class CheckExpectedBranchVersionPlugin implements Plugin<Project> {
 			writeExpectedVersionOutput(version);
 		}
 
-		private void writeExpectedVersionOutput(String fileContent) throws IOException {
-			Files.writeString(getOutputFile().get().getAsFile().toPath(), fileContent);
+		private void writeExpectedVersionOutput(String fileContent) {
+			try {
+				Files.writeString(getOutputFile().get().getAsFile().toPath(), fileContent);
+			} catch (IOException e) {
+				throw new TaskExecutionException(this, e);
+			}
 		}
 
 		private boolean versionsMatch(String projectVersion, String branchVersion) {
