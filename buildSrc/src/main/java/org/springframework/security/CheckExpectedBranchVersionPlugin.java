@@ -19,9 +19,11 @@ package org.springframework.security;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.CacheableTask;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputFile;
@@ -43,12 +45,28 @@ public class CheckExpectedBranchVersionPlugin implements Plugin<Project> {
 		TaskProvider<CheckExpectedBranchVersionTask> checkExpectedBranchVersionTask = project.getTasks().register("checkExpectedBranchVersion", CheckExpectedBranchVersionTask.class, (task) -> {
 			task.setGroup("Build");
 			task.setDescription("Check if the project version matches the branch version");
+			task.onlyIf("skipCheckExpectedBranchVersion property is false or not present", CheckExpectedBranchVersionPlugin::onlyIfCheck);
 			task.getVersion().convention(project.provider(() -> project.getVersion().toString()));
-			task.getSkipCheckExpectedBranchVersion().convention(project.getProviders().gradleProperty("skipCheckExpectedBranchVersion").isPresent());
 			task.getBranchName().convention(project.getProviders().exec(execSpec -> execSpec.setCommandLine("git", "symbolic-ref", "--short", "HEAD")).getStandardOutput().getAsText());
 			task.getOutputFile().convention(project.getLayout().getBuildDirectory().file("check-expected-branch-version"));
 		});
 		project.getTasks().named(JavaBasePlugin.CHECK_TASK_NAME, checkTask -> checkTask.dependsOn(checkExpectedBranchVersionTask));
+	}
+
+	/**
+	 * <p>If the project is configured with property <code>-PskipCheckExpectedBranchVersion</code> or set equal to any value other than <code>false</code> then the task will be skipped.</p>
+	 * <p>If the project is configured with property <code>-PskipCheckExpectedBranchVersion=false</code> or the property is absent then the task will be executed.</p>
+	 * @param task context to perform onlyIf check in.
+	 * @return <code>true</code> only if the <code>skipCheckExpectedBranchVersion</code> property is present or present with any value other than <code>false</code>.
+	 */
+	private static boolean onlyIfCheck(Task task) {
+		return task.getProject().getProviders().gradleProperty("skipCheckExpectedBranchVersion")
+				// if the property is not present then evaluate the property with a fallback value of false
+				.orElse("false")
+				// if the property value is equal to false do not skip
+				.map("false"::equalsIgnoreCase)
+				// if the property value is anything else skip running the task.
+				.get();
 	}
 
 	@CacheableTask
@@ -58,9 +76,6 @@ public class CheckExpectedBranchVersionPlugin implements Plugin<Project> {
 		abstract Property<String> getVersion();
 
 		@Input
-		abstract Property<Boolean> getSkipCheckExpectedBranchVersion();
-
-		@Input
 		abstract Property<String> getBranchName();
 
 		@OutputFile
@@ -68,11 +83,6 @@ public class CheckExpectedBranchVersionPlugin implements Plugin<Project> {
 
 		@TaskAction
 		public void run() {
-			if (getSkipCheckExpectedBranchVersion().get()) {
-				writeExpectedVersionOutput("skipCheckExpectedBranchVersion=" + getSkipCheckExpectedBranchVersion().get());
-				return;
-			}
-
 			String version = getVersion().get();
 			String branchVersion = getBranchName().map(String::trim).get();
 			if (!branchVersion.matches("^[0-9]+\\.[0-9]+\\.x$")) {
