@@ -16,15 +16,21 @@
 
 package org.springframework.security;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.plugins.JavaBasePlugin;
+import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.CacheableTask;
+import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.TaskProvider;
+import org.gradle.api.tasks.VerificationException;
+
+import java.io.IOException;
+import java.nio.file.Files;
 
 /**
  * @author Marcus da Coregio
@@ -36,39 +42,56 @@ public class CheckExpectedBranchVersionPlugin implements Plugin<Project> {
 		TaskProvider<CheckExpectedBranchVersionTask> checkExpectedBranchVersionTask = project.getTasks().register("checkExpectedBranchVersion", CheckExpectedBranchVersionTask.class, (task) -> {
 			task.setGroup("Build");
 			task.setDescription("Check if the project version matches the branch version");
+			task.getVersion().convention(project.provider(() -> project.getVersion().toString()));
+			task.getSkipCheckExpectedBranchVersion().convention(project.getProviders().gradleProperty("skipCheckExpectedBranchVersion").isPresent());
+			task.getBranchName().convention(project.getProviders().exec(execSpec -> execSpec.setCommandLine("git", "symbolic-ref", "--short", "HEAD")).getStandardOutput().getAsText());
+			task.getOutputFile().convention(project.getLayout().getBuildDirectory().file("check-expected-branch-version"));
 		});
 		project.getTasks().named(JavaBasePlugin.CHECK_TASK_NAME, checkTask -> checkTask.dependsOn(checkExpectedBranchVersionTask));
 	}
 
-	public static class CheckExpectedBranchVersionTask extends DefaultTask {
+	@CacheableTask
+	public static abstract class CheckExpectedBranchVersionTask extends DefaultTask {
+
+		@Input
+		abstract Property<String> getVersion();
+
+		@Input
+		abstract Property<Boolean> getSkipCheckExpectedBranchVersion();
+
+		@Input
+		abstract Property<String> getBranchName();
+
+		@OutputFile
+		abstract RegularFileProperty getOutputFile();
 
 		@TaskAction
 		public void run() throws IOException {
-			Project project = getProject();
-			if (project.hasProperty("skipCheckExpectedBranchVersion")) {
+			if (getSkipCheckExpectedBranchVersion().get()) {
+				writeExpectedVersionOutput("skipCheckExpectedBranchVersion=" + getSkipCheckExpectedBranchVersion().get());
 				return;
 			}
-			String version = (String) project.getVersion();
-			String branchVersion = getBranchVersion(project);
+
+			String version = getVersion().get();
+			String branchVersion = getBranchName().map(String::trim).get();
 			if (!branchVersion.matches("^[0-9]+\\.[0-9]+\\.x$")) {
-				System.out.println("Branch version does not match *.x, ignoring");
+				String msg = String.format("Branch version [%s] does not match *.x, ignoring", branchVersion);
+				getLogger().warn(msg);
+				writeExpectedVersionOutput(msg);
 				return;
 			}
 			if (!versionsMatch(version, branchVersion)) {
-				throw new IllegalStateException(String.format("Project version [%s] does not match branch version [%s]. " +
-						"Please verify that the branch contains the right version.", version, branchVersion));
+				String msg = String.format("Project version [%s] does not match branch version [%s]. " +
+						"Please verify that the branch contains the right version.", version, branchVersion);
+				writeExpectedVersionOutput(msg);
+				throw new VerificationException(msg);
 			}
+
+			writeExpectedVersionOutput(version);
 		}
 
-		private static String getBranchVersion(Project project) throws IOException {
-			try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-				project.exec((exec) -> {
-					exec.commandLine("git", "symbolic-ref", "--short", "HEAD");
-					exec.setErrorOutput(System.err);
-					exec.setStandardOutput(baos);
-				});
-				return baos.toString();
-			}
+		private void writeExpectedVersionOutput(String fileContent) throws IOException {
+			Files.writeString(getOutputFile().get().getAsFile().toPath(), fileContent);
 		}
 
 		private boolean versionsMatch(String projectVersion, String branchVersion) {
