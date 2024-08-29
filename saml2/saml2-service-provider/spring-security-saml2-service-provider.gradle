@@ -148,7 +148,7 @@ tasks.register("opensaml4Test", Test) {
 
 	develocity.testRetry {
 		maxRetries = 3
-		failOnPassedAfterRetry = false
+		failOnPassedAfterRetry = true
 	}
 }
 
@@ -159,7 +159,7 @@ tasks.register("opensaml5Test", Test) {
 
 	develocity.testRetry {
 		maxRetries = 3
-		failOnPassedAfterRetry = false
+		failOnPassedAfterRetry = true
 	}
 }
 

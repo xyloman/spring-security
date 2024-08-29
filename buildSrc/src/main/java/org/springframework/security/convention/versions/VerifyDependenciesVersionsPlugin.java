@@ -49,8 +49,12 @@ public class VerifyDependenciesVersionsPlugin implements Plugin<Project> {
 		Optional<Provider<MinimalExternalModuleDependency>> oauth2OidcSdk = versionCatalog.findLibrary("com-nimbusds-oauth2-oidc-sdk");
 		Optional<Provider<MinimalExternalModuleDependency>> nimbusJoseJwt = versionCatalog.findLibrary("com-nimbusds-nimbus-jose-jwt");
 
-		if (oauth2OidcSdk.isEmpty() || nimbusJoseJwt.isEmpty()) {
-			return;
+		if (oauth2OidcSdk.isEmpty()) {
+			throw new VerificationException("Library [com-nimbusds-oauth2-oidc-sdk] does not exist in the version catalog named libs.");
+		}
+
+		if (nimbusJoseJwt.isEmpty()) {
+			throw new VerificationException("Library [com-nimbusds-nimbus-jose-jwt] does not exist in the version catalog named libs.");
 		}
 
 		TaskProvider<VerifyDependenciesVersionsTask> verifyDependenciesVersionsTaskProvider = project.getTasks().register("verifyDependenciesVersions", VerifyDependenciesVersionsTask.class, (task) -> {
