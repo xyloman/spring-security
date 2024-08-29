@@ -84,11 +84,6 @@ public class IntegrationTestPlugin implements Plugin<Project> {
 			classpath = project.sourceSets.integrationTest.runtimeClasspath
 			shouldRunAfter project.tasks.test
 			useJUnitPlatform()
-
-            develocity.testRetry {
-                maxRetries = 3
-                failOnPassedAfterRetry = false
-            }
 		}
 		project.tasks.check.dependsOn integrationTestTask
 
