@@ -52,19 +52,12 @@ public class CheckExpectedBranchVersionPlugin implements Plugin<Project> {
 		project.getTasks().named(JavaBasePlugin.CHECK_TASK_NAME, checkTask -> checkTask.dependsOn(checkExpectedBranchVersionTask));
 	}
 
-	/**
-	 * <p>If the project is configured with property <code>-PskipCheckExpectedBranchVersion</code> or set equal to any value other than <code>false</code> then the task will be skipped.</p>
-	 * <p>If the project is configured with property <code>-PskipCheckExpectedBranchVersion=false</code> or the property is absent then the task will be executed.</p>
-	 * @param task context to perform onlyIf check in.
-	 * @return <code>true</code> only if the <code>skipCheckExpectedBranchVersion</code> property is present or present with any value other than <code>false</code>.
-	 */
 	private static boolean onlyIfCheck(Task task) {
-		return task.getProject().getProviders().gradleProperty("skipCheckExpectedBranchVersion")
-				// if the property is not present then evaluate the property with a fallback value of false
+		return task.getProject()
+				.getProviders()
+				.gradleProperty("skipCheckExpectedBranchVersion")
 				.orElse("false")
-				// if the property value is equal to false do not skip
 				.map("false"::equalsIgnoreCase)
-				// if the property value is anything else skip running the task.
 				.get();
 	}
 
