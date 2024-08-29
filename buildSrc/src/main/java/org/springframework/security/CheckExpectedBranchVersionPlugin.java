@@ -44,7 +44,7 @@ public class CheckExpectedBranchVersionPlugin implements Plugin<Project> {
 		TaskProvider<CheckExpectedBranchVersionTask> checkExpectedBranchVersionTask = project.getTasks().register("checkExpectedBranchVersion", CheckExpectedBranchVersionTask.class, (task) -> {
 			task.setGroup("Build");
 			task.setDescription("Check if the project version matches the branch version");
-			task.onlyIf("skipCheckExpectedBranchVersion property is false or not present", CheckExpectedBranchVersionPlugin::onlyIfCheck);
+			task.onlyIf("skipCheckExpectedBranchVersion property is false or not present", CheckExpectedBranchVersionPlugin::skipPropertyFalseOrNotPresent);
 			task.getVersion().convention(project.provider(() -> project.getVersion().toString()));
 			task.getBranchName().convention(project.getProviders().exec(execSpec -> execSpec.setCommandLine("git", "symbolic-ref", "--short", "HEAD")).getStandardOutput().getAsText());
 			task.getOutputFile().convention(project.getLayout().getBuildDirectory().file("check-expected-branch-version"));
@@ -52,7 +52,7 @@ public class CheckExpectedBranchVersionPlugin implements Plugin<Project> {
 		project.getTasks().named(JavaBasePlugin.CHECK_TASK_NAME, checkTask -> checkTask.dependsOn(checkExpectedBranchVersionTask));
 	}
 
-	private static boolean onlyIfCheck(Task task) {
+	private static boolean skipPropertyFalseOrNotPresent(Task task) {
 		return task.getProject()
 				.getProviders()
 				.gradleProperty("skipCheckExpectedBranchVersion")

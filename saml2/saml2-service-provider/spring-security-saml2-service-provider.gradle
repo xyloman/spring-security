@@ -145,22 +145,12 @@ tasks.register("opensaml4Test", Test) {
 	useJUnitPlatform()
 	testClassesDirs = sourceSets.opensaml4Test.output.classesDirs
 	classpath = sourceSets.opensaml4Test.runtimeClasspath
-
-	develocity.testRetry {
-		maxRetries = 3
-		failOnPassedAfterRetry = true
-	}
 }
 
 tasks.register("opensaml5Test", Test) {
 	useJUnitPlatform()
 	testClassesDirs = sourceSets.opensaml5Test.output.classesDirs
 	classpath = sourceSets.opensaml5Test.output + sourceSets.opensaml5Test.runtimeClasspath
-
-	develocity.testRetry {
-		maxRetries = 3
-		failOnPassedAfterRetry = true
-	}
 }
 
 tasks.named("test") {
